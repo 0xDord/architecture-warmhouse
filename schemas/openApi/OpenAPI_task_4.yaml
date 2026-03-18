@@ -1,0 +1,203 @@
+openapi: 3.0.3
+info:
+  title: SmartHome User & Device API
+  version: 1.0.0
+  description: API для получения данных пользователя, управления устройствами и интеграции с Kafka для телеметрии
+
+paths:
+  /users/{userId}:
+    get:
+      summary: Получить данные пользователя
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Идентификатор пользователя
+            example: "123e4567-e89b-12d3-a456-426614174000"
+            pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      responses:
+        "200":
+          description: Информация о пользователе
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Пользователь не найден
+        "500":
+          description: Ошибка сервера
+
+  /users/{userId}/devices:
+    get:
+      summary: Получить список устройств пользователя
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: UUID
+      responses:
+        "200":
+          description: Список устройств
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Device"
+        "404":
+          description: Пользователь не найден
+        "500":
+          description: Ошибка сервера
+
+  /devices/{deviceId}/module/{moduleId}:
+    post:
+      summary: Изменить значение на модуле устройства
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: UUID
+        - name: moduleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: UUID
+      requestBody:
+        description: Новое значение для модуля устройства
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateValueRequest"
+      responses:
+        "202":
+          description: Запрос успешно обработан
+        "404":
+          description: Устройство не найдено
+        "500":
+          description: Ошибка сервера
+
+  /devices/{deviceId}/module/{moduleId}/telemetry:
+    get:
+      summary: Получить телеметрию модуля устройства
+      description: Возвращает список последних значений телеметрии
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: UUID устройства
+          schema:
+            type: string
+            format: uuid
+        - name: moduleId
+          in: path
+          required: true
+          description: UUID модуля
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          description: Параметр пагинации
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: Количество последних записей (по умолчанию 50)
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Успешный ответ со списком телеметрии
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TelemetryData"
+        "404":
+          description: Устройство не найдено
+        "500":
+          description: Ошибка сервера
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: UUID
+        name:
+          type: string
+          description: Имя пользователя
+        email:
+          type: string
+          description: Почтовый адрес
+        locations:
+          type: array
+          items:
+            type: string
+            format: UUID
+            description: Список идентификаторов локаций(адресов) пользователя
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: UUID
+        name:
+          type: string
+          description: Название устройства
+        deviceType:
+          type: string
+          enum: [ SENSOR, LIGHT, CAMERA, GATES ]
+          description: Тип устройства
+        modules:
+          type: array
+          items:
+            type: string
+            format: UUID
+            description: Список идентификаторов модулей устройства
+        status:
+          type: string
+          enum: [ ON, OFF ]
+        location:
+          type: string
+          format: UUID
+          description: Идентификатор локации устройства
+
+    UpdateValueRequest:
+      type: object
+      properties:
+        newValue:
+          type: number
+          format: float
+
+    TelemetryData:
+      type: object
+      properties:
+        id:
+          type: string
+          format: UUID
+        moduleId:
+          type: string
+          format: UUID
+        createdAt:
+          type: string
+          format: date-time
+        value:
+          type: string
